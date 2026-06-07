@@ -9,6 +9,8 @@ node_modules/
 dist/
 coverage/
 uploads/
+output/
+*.egg-info/
+*.tsbuildinfo
 *.pyc
 *.log
-

@@ -9,9 +9,9 @@ from collections.abc import Sequence
 
 import pgvector.sqlalchemy
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 from app.core.config import settings
 
 revision: str = "0001_initial"
@@ -22,10 +22,14 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    role = sa.Enum("admin", "analyst", "reviewer", "viewer", name="role")
-    doc_status = sa.Enum("uploaded", "processing", "processed", "failed", name="documentstatus")
-    review_status = sa.Enum("pending", "approved", "edited", "rejected", "regenerated", name="reviewstatus")
-    query_status = sa.Enum("completed", "needs_review", "failed", name="querystatus")
+    role = postgresql.ENUM("admin", "analyst", "reviewer", "viewer", name="role", create_type=False)
+    doc_status = postgresql.ENUM(
+        "uploaded", "processing", "processed", "failed", name="documentstatus", create_type=False
+    )
+    review_status = postgresql.ENUM(
+        "pending", "approved", "edited", "rejected", "regenerated", name="reviewstatus", create_type=False
+    )
+    query_status = postgresql.ENUM("completed", "needs_review", "failed", name="querystatus", create_type=False)
     role.create(op.get_bind(), checkfirst=True)
     doc_status.create(op.get_bind(), checkfirst=True)
     review_status.create(op.get_bind(), checkfirst=True)

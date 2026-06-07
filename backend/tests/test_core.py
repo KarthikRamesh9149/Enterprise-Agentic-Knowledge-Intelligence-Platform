@@ -1,6 +1,12 @@
-from pathlib import Path
+from uuid import UUID
 
-from app.agents.workflow import AgentState, classify_question, critique_answer, score_confidence, verify_citations
+from app.agents.workflow import (
+    AgentState,
+    classify_question,
+    critique_answer,
+    score_confidence,
+    verify_citations,
+)
 from app.core.security import create_access_token, decode_token, hash_password, verify_password
 from app.services.documents import chunk_text, detect_prompt_injection, safe_filename
 from app.services.providers import MockEmbeddingProvider, MockLLMProvider
@@ -46,7 +52,11 @@ def test_mock_llm_uses_context_and_citations() -> None:
 
 
 def test_agent_nodes_score_confidence() -> None:
-    state = AgentState(user_id="00000000-0000-0000-0000-000000000001", session_id="00000000-0000-0000-0000-000000000002", question="Compare AI risks")
+    state = AgentState(
+        user_id=UUID("00000000-0000-0000-0000-000000000001"),
+        session_id=UUID("00000000-0000-0000-0000-000000000002"),
+        question="Compare AI risks",
+    )
     state = classify_question(state)
     assert state.question_type == "comparison"
     state.reranked_chunks = [
@@ -64,4 +74,3 @@ def test_agent_nodes_score_confidence() -> None:
     state = score_confidence(state)
     assert 0 <= state.confidence_score <= 1
     assert state.confidence_band in {"low", "medium", "high"}
-

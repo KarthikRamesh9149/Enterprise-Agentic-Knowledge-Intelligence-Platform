@@ -196,7 +196,7 @@ def run_agent_workflow(db: Session, state: AgentState) -> AgentState:
     try:
         from langgraph.graph import END, START, StateGraph
 
-        graph = StateGraph(dict)
+        graph = StateGraph(dict)  # type: ignore[type-var]
 
         def node(fn):
             def wrapped(raw: dict) -> dict:

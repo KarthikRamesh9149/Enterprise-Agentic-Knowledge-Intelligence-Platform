@@ -51,16 +51,16 @@ def answer_question(db: Session, user: User, payload: ChatQueryRequest) -> tuple
     )
     db.add(query)
     db.flush()
-    citations = []
-    for citation in state.citations:
+    citations: list[RAGCitation] = []
+    for citation_data in state.citations:
         row = RAGCitation(
             query_id=query.id,
-            document_id=citation["document_id"],
-            chunk_id=citation["chunk_id"],
-            quote=citation["quote"],
-            page_number=citation["page_number"],
-            relevance_score=citation["relevance_score"],
-            verification_status=citation["verification_status"],
+            document_id=citation_data["document_id"],
+            chunk_id=citation_data["chunk_id"],
+            quote=citation_data["quote"],
+            page_number=citation_data["page_number"],
+            relevance_score=citation_data["relevance_score"],
+            verification_status=citation_data["verification_status"],
         )
         db.add(row)
         citations.append(row)
@@ -85,4 +85,3 @@ def answer_question(db: Session, user: User, payload: ChatQueryRequest) -> tuple
 def user_queries(db: Session, user: User) -> list[RAGQuery]:
     stmt = select(RAGQuery).where(RAGQuery.user_id == user.id).order_by(RAGQuery.created_at.desc())
     return list(db.scalars(stmt).all())
-

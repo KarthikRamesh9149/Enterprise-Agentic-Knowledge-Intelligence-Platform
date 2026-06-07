@@ -1,6 +1,6 @@
-import enum
 import uuid
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -27,21 +27,21 @@ def now_utc() -> datetime:
     return datetime.now(UTC)
 
 
-class Role(str, enum.Enum):
+class Role(StrEnum):
     admin = "admin"
     analyst = "analyst"
     reviewer = "reviewer"
     viewer = "viewer"
 
 
-class DocumentStatus(str, enum.Enum):
+class DocumentStatus(StrEnum):
     uploaded = "uploaded"
     processing = "processing"
     processed = "processed"
     failed = "failed"
 
 
-class ReviewStatus(str, enum.Enum):
+class ReviewStatus(StrEnum):
     pending = "pending"
     approved = "approved"
     edited = "edited"
@@ -49,7 +49,7 @@ class ReviewStatus(str, enum.Enum):
     regenerated = "regenerated"
 
 
-class QueryStatus(str, enum.Enum):
+class QueryStatus(StrEnum):
     completed = "completed"
     needs_review = "needs_review"
     failed = "failed"
@@ -81,7 +81,10 @@ class Document(Base):
     event_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    chunks: Mapped[list["DocumentChunk"]] = relationship(cascade="all, delete-orphan")
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
     __table_args__ = (UniqueConstraint("content_hash", "uploaded_by", name="uq_document_hash_user"),)
 
 
@@ -96,7 +99,7 @@ class DocumentChunk(Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(settings.embedding_dimension))
     event_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
-    document: Mapped[Document] = relationship()
+    document: Mapped[Document] = relationship(back_populates="chunks")
     __table_args__ = (Index("ix_document_chunks_doc_idx", "document_id", "chunk_index"),)
 
 
@@ -220,4 +223,3 @@ class SystemMetric(Base):
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
     dimensions: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
-

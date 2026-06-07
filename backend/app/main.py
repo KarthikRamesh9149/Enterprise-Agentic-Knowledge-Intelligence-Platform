@@ -29,7 +29,7 @@ from app.db.models import (
     User,
     now_utc,
 )
-from app.db.session import Base, SessionLocal, engine, get_db
+from app.db.session import Base, engine, get_db
 from app.schemas.api import (
     ChatQueryRequest,
     ChatQueryResponse,
@@ -385,4 +385,3 @@ def admin_users(user: User = Depends(require_roles(Role.admin)), db: Session = D
 def system_health(user: User = Depends(require_roles(Role.admin)), db: Session = Depends(get_db)) -> dict:
     db.execute(select(1))
     return {"database": "ok", "redis": "optional-local", "mock_providers": settings.embedding_provider == "mock" and settings.llm_provider == "mock"}
-
