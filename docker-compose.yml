@@ -34,6 +34,18 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/knowledge
       REDIS_URL: redis://redis:6379/0
       UPLOAD_DIR: /app/uploads
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-128}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-5-mini}
+      MAX_OUTPUT_TOKENS: ${MAX_OUTPUT_TOKENS:-1200}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-minimal}
+      OPENAI_TEXT_VERBOSITY: ${OPENAI_TEXT_VERBOSITY:-low}
+      RAG_TOP_K: ${RAG_TOP_K:-8}
+      RAG_MAX_CONTEXT_CHARS: ${RAG_MAX_CONTEXT_CHARS:-12000}
+      CITATION_MAX_CHARS: ${CITATION_MAX_CHARS:-360}
     ports:
       - "8000:8000"
     volumes:
@@ -59,4 +71,3 @@ services:
 volumes:
   postgres_data:
   uploads:
-

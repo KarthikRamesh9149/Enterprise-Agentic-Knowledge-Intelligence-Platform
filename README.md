@@ -195,7 +195,9 @@ LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-5-mini
-MAX_OUTPUT_TOKENS=900
+MAX_OUTPUT_TOKENS=1200
+OPENAI_REASONING_EFFORT=minimal
+OPENAI_TEXT_VERBOSITY=low
 RAG_TOP_K=8
 RAG_MAX_CONTEXT_CHARS=12000
 CITATION_MAX_CHARS=360
@@ -207,7 +209,8 @@ Token efficiency plan:
 - Use `gpt-5-mini` as the default cost-efficient reasoning/chat model.
 - Keep `top_k` at 8 or lower for normal questions.
 - Cap retrieved context with `RAG_MAX_CONTEXT_CHARS`.
-- Keep `MAX_OUTPUT_TOKENS` under 900 for board-level summaries.
+- Keep `MAX_OUTPUT_TOKENS` near 1200 for board-level summaries; use lower values for short Q&A demos.
+- Use `OPENAI_REASONING_EFFORT=minimal` and `OPENAI_TEXT_VERBOSITY=low` for low-latency, low-token grounded answers.
 - Route low-confidence answers to review instead of asking the model to over-explain.
 
 Official OpenAI docs currently list `gpt-5-mini` as a faster, cost-efficient GPT-5 option and `text-embedding-3-small` as the low-cost embedding model. The OpenAI provider uses the Responses API for model calls. See [OpenAI models](https://platform.openai.com/docs/models), [Responses API](https://platform.openai.com/docs/api-reference/responses), and [pricing](https://platform.openai.com/docs/pricing/).

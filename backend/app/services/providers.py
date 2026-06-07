@@ -31,10 +31,13 @@ class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
     def embed(self, text: str) -> list[float]:
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI-compatible embeddings")
+        payload: dict[str, object] = {"model": settings.openai_embedding_model, "input": text}
+        if settings.openai_embedding_model.startswith("text-embedding-3"):
+            payload["dimensions"] = settings.embedding_dimension
         response = httpx.post(
             "https://api.openai.com/v1/embeddings",
             headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-            json={"model": settings.openai_embedding_model, "input": text},
+            json=payload,
             timeout=30,
         )
         response.raise_for_status()
@@ -78,6 +81,22 @@ class MockLLMProvider(LLMProvider):
 
 
 class OpenAICompatibleLLMProvider(LLMProvider):
+    @staticmethod
+    def _extract_output_text(body: dict) -> str:
+        if body.get("output_text"):
+            return str(body["output_text"]).strip()
+        parts: list[str] = []
+        for item in body.get("output", []):
+            if not isinstance(item, dict):
+                continue
+            for content in item.get("content", []):
+                if not isinstance(content, dict):
+                    continue
+                text = content.get("text") or content.get("value")
+                if text:
+                    parts.append(str(text))
+        return "\n".join(parts).strip()
+
     def generate(self, question: str, contexts: list[dict]) -> LLMResult:
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI-compatible chat")
@@ -96,6 +115,8 @@ class OpenAICompatibleLLMProvider(LLMProvider):
             json={
                 "model": settings.openai_chat_model,
                 "max_output_tokens": settings.max_output_tokens,
+                "reasoning": {"effort": settings.openai_reasoning_effort},
+                "text": {"verbosity": settings.openai_text_verbosity},
                 "input": [
                     {
                         "role": "system",
@@ -109,15 +130,18 @@ class OpenAICompatibleLLMProvider(LLMProvider):
         response.raise_for_status()
         body = response.json()
         usage = body.get("usage", {})
-        text = body.get("output_text")
+        text = self._extract_output_text(body)
         if not text:
-            text = "\n".join(
-                content.get("text", "")
-                for item in body.get("output", [])
-                for content in item.get("content", [])
-                if content.get("type") in {"output_text", "text"}
+            fallback = MockLLMProvider().generate(question, contexts)
+            return LLMResult(
+                answer=(
+                    fallback.answer
+                    + "\nProvider note: OpenAI returned no assistant text for this request, so the local grounded fallback assembled this answer from retrieved evidence."
+                ),
+                total_tokens=usage.get("total_tokens", fallback.total_tokens),
+                estimated_cost=0.0,
             )
-        return LLMResult(text or "No model output returned.", usage.get("total_tokens", 0), 0.0)
+        return LLMResult(text, usage.get("total_tokens", 0), 0.0)
 
 
 def get_llm_provider() -> LLMProvider:

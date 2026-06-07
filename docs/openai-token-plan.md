@@ -11,7 +11,9 @@ EMBEDDING_PROVIDER=openai
 LLM_PROVIDER=openai
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-5-mini
-MAX_OUTPUT_TOKENS=900
+MAX_OUTPUT_TOKENS=1200
+OPENAI_REASONING_EFFORT=minimal
+OPENAI_TEXT_VERBOSITY=low
 RAG_TOP_K=8
 RAG_MAX_CONTEXT_CHARS=12000
 CITATION_MAX_CHARS=360
@@ -22,6 +24,8 @@ CITATION_MAX_CHARS=360
 - `text-embedding-3-small` keeps embedding cost low.
 - `gpt-5-mini` is the cost-efficient GPT-5 option for precise, well-scoped prompts.
 - The OpenAI provider uses the Responses API, which OpenAI recommends for reasoning and agentic workflows.
+- `OPENAI_REASONING_EFFORT=minimal` reduces reasoning-token spend and avoids empty outputs from using too much of the output budget.
+- `OPENAI_TEXT_VERBOSITY=low` keeps answers concise while the product still enforces citations, confidence, and review routing.
 - RAG uses retrieved snippets rather than full documents.
 - Citation quotes are capped.
 - Output length is capped.
@@ -42,7 +46,7 @@ The app does not send uploaded documents as instructions. Uploaded text is treat
 
 - Lower `RAG_TOP_K` to 4 for quick demos.
 - Lower `RAG_MAX_CONTEXT_CHARS` to 6000 for short annual report excerpts.
-- Keep `MAX_OUTPUT_TOKENS` between 500 and 900 for portfolio demos.
+- Keep `MAX_OUTPUT_TOKENS` between 500 and 1200 for portfolio demos, using the lower end for short Q&A and the upper end for board-level summaries.
 - Use evals with mock providers by default.
 - Avoid running full eval suites with paid providers unless intentionally benchmarking.
 

@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     llm_provider: str = "mock"
     openai_chat_model: str = "gpt-5-mini"
     llm_temperature: float = 0.1
-    max_output_tokens: int = 900
+    max_output_tokens: int = 1200
+    openai_reasoning_effort: str = "minimal"
+    openai_text_verbosity: str = "low"
     rag_top_k: int = 8
     rag_max_context_chars: int = 12000
     citation_max_chars: int = 360
