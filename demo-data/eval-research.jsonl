@@ -1,0 +1,2 @@
+{"question":"What does the uploaded research say about RAG limitations?","expected_keywords":["retrieval","chunks","citations","unsupported"],"expected_documents":["ai-research-paper-summary.md"],"answer_type":"research_synthesis","minimum_expected_citation_count":1,"notes":"Should discuss limitations and eval metrics."}
+

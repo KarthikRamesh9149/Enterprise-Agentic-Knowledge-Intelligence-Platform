@@ -1,0 +1,3 @@
+{"question":"Summarize the main AI infrastructure risks across the uploaded annual reports.","expected_keywords":["gpu","inference","privacy","governance"],"expected_documents":["company-annual-report-ai-risk.md"],"answer_type":"risk_summary","minimum_expected_citation_count":1,"notes":"Should cite risk factors from annual report excerpts."}
+{"question":"Compare how two companies describe AI-related investment.","expected_keywords":["investment","infrastructure","productivity","oversight"],"expected_documents":["company-annual-report-ai-investment.md","company-annual-report-ai-risk.md"],"answer_type":"comparison","minimum_expected_citation_count":2,"notes":"Should compare Contoso and Northstar."}
+
