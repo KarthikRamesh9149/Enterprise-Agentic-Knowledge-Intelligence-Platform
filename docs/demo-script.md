@@ -14,5 +14,4 @@
 10. Log in as `admin@example.com`.
 11. Run evaluations.
 12. Show analytics and audit logs.
-13. Explain local-only architecture and future Supabase/deployment plans.
-
+13. Explain local-only architecture.
