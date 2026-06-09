@@ -25,149 +25,77 @@ This repository demonstrates practical enterprise AI engineering: auth, RBAC, do
 ## Architecture
 
 ```mermaid
-flowchart TB
-  %% Enterprise Agentic Knowledge Intelligence Platform
+flowchart LR
+  Users["Enterprise users<br/>admin, analyst, reviewer, viewer"]
 
-  subgraph People["Enterprise Users"]
-    Admin["Admin<br/>analytics, users, audit logs, evals"]
-    Analyst["Analyst<br/>upload, process, ask questions"]
-    Reviewer["Reviewer<br/>approve, edit, reject, regenerate"]
-    Viewer["Viewer<br/>ask questions, view processed knowledge"]
+  subgraph UI["Next.js workspace"]
+    Shell["Role-aware app shell"]
+    Views["Dashboard, documents, chat, review, evals, admin"]
+    Client["Typed API client"]
   end
 
-  subgraph Experience["Experience Layer - Next.js 16 + TypeScript"]
-    Web["Role-aware SaaS workspace<br/>dashboard, documents, chat, review, evals, admin"]
-    Client["Typed API client<br/>JWT session, loading states, errors, empty states"]
+  subgraph API["FastAPI application"]
+    Auth["JWT auth and RBAC"]
+    Docs["Document ingestion"]
+    Chat["Citation-grounded chat"]
+    Review["Human review queue"]
+    Admin["Analytics, audit, evals"]
   end
 
-  subgraph API["Application Layer - FastAPI"]
-    Gateway["API router<br/>/auth /documents /chat /review /evals /admin"]
-    Security["Security boundary<br/>JWT auth, RBAC, CORS, rate limiting, safe errors"]
-    Schemas["Pydantic v2 contracts<br/>validated requests and responses"]
+  subgraph Agent["Agent workflow"]
+    Plan["Classify and plan"]
+    Retrieve["Retrieve and rerank"]
+    Generate["Generate with citations"]
+    Verify["Verify, score, route"]
+    Plan --> Retrieve --> Generate --> Verify
   end
 
-  subgraph Services["Domain Services"]
-    Auth["Auth service<br/>bcrypt password hashing, token issuance, demo seed users"]
-    Ingestion["Document ingestion<br/>type validation, safe filenames, hashing, local storage"]
-    Processing["Processing pipeline<br/>PDF/TXT/MD/CSV parsing, prompt-injection detection, chunking"]
-    Retrieval["Retrieval service<br/>query embedding, pgvector cosine search, filters, evidence snippets"]
-    Chat["RAG persistence<br/>sessions, messages, queries, citations, latency, cost estimate"]
-    Review["Human review workflow<br/>low-confidence routing and reviewer actions"]
-    Evals["Evaluation runner<br/>local JSONL cases, keyword coverage, citation metrics, pass rate"]
-    AdminOps["Admin analytics<br/>usage, confidence, latency, failures, review rate"]
+  subgraph AI["AI providers"]
+    LocalAI["Deterministic local providers"]
+    OpenAI["OpenAI Responses API<br/>gpt-5-mini"]
+    Embed["OpenAI embeddings<br/>text-embedding-3-small"]
   end
 
-  subgraph Agent["Agentic Reasoning Layer - LangGraph"]
-    Classifier["1. Question classifier"]
-    Planner["2. Retrieval planner"]
-    Retriever["3. Retriever"]
-    Reranker["4. Reranker"]
-    Generator["5. Answer generator"]
-    Verifier["6. Citation verifier"]
-    Critic["7. Critic"]
-    Scorer["8. Confidence scorer"]
-    Decision["9. Human review decision"]
-    Final["10. Final response builder"]
-    Classifier --> Planner --> Retriever --> Reranker --> Generator --> Verifier --> Critic --> Scorer --> Decision --> Final
+  subgraph Data["Data plane"]
+    Postgres[("PostgreSQL 16")]
+    Vector[("pgvector HNSW")]
+    Redis[("Redis")]
+    Uploads[("Local upload volume")]
   end
 
-  subgraph Providers["AI Provider Boundary"]
-    MockEmb["Mock embeddings<br/>deterministic, free, test-safe"]
-    MockLLM["Mock LLM<br/>grounded local demo answers"]
-    OpenAIEmb["OpenAI-compatible embeddings<br/>text-embedding-3-small"]
-    OpenAIResp["OpenAI Responses API<br/>gpt-5-mini, capped context and output"]
+  subgraph Ops["Governance and quality"]
+    Audit["Audit logs"]
+    Traces["Agent traces"]
+    Metrics["Confidence and latency metrics"]
+    CI["GitHub Actions CI"]
   end
 
-  subgraph Data["Local Data Plane"]
-    Postgres[("PostgreSQL 16<br/>system of record")]
-    Vector[("pgvector HNSW index<br/>document chunk embeddings")]
-    Redis[("Redis<br/>rate limit/cache ready")]
-    Uploads[("Local upload volume<br/>original files")]
-    Demo["demo-data<br/>safe generated research and annual report excerpts"]
-  end
+  Users --> Shell --> Views --> Client --> Auth
+  Client --> Docs
+  Client --> Chat
+  Client --> Review
+  Client --> Admin
 
-  subgraph Observability["Governance, Evaluation, and Observability"]
-    Audit["Audit logs<br/>auth, upload, processing, query, review, eval, admin access"]
-    Traces["Agent traces<br/>node summaries, status, latency, errors"]
-    Metrics["System metrics<br/>confidence, latency, citation pass rate, review rate"]
-    CI["GitHub Actions CI<br/>backend lint/typecheck/tests, frontend typecheck/build"]
-    Docs["Architecture, API, security, database, evals, Supabase and deployment plans"]
-  end
-
-  subgraph Future["Future Boundary - intentionally not implemented yet"]
-    Supabase["Supabase plan<br/>Postgres, Auth, Storage, pgvector migration"]
-    Deploy["Deployment plan<br/>managed frontend, backend, database, Redis, secrets"]
-  end
-
-  Admin --> Web
-  Analyst --> Web
-  Reviewer --> Web
-  Viewer --> Web
-  Web --> Client --> Gateway
-  Gateway --> Security --> Schemas
-  Gateway --> Auth
-  Gateway --> Ingestion
-  Gateway --> Processing
-  Gateway --> Retrieval
-  Gateway --> Chat
-  Gateway --> Review
-  Gateway --> Evals
-  Gateway --> AdminOps
-
-  Ingestion --> Uploads
-  Ingestion --> Postgres
-  Processing --> Uploads
-  Processing --> MockEmb
-  Processing --> OpenAIEmb
-  Processing --> Postgres
-  Processing --> Vector
-  Retrieval --> MockEmb
-  Retrieval --> OpenAIEmb
-  Retrieval --> Vector
+  Docs --> Uploads
+  Docs --> Postgres
+  Docs --> Embed
+  Embed --> Vector
   Chat --> Agent
-  Agent --> MockLLM
-  Agent --> OpenAIResp
-  Agent --> Chat
+  Retrieve --> Vector
+  Generate --> LocalAI
+  Generate --> OpenAI
+  Verify --> Review
+
+  Auth --> Redis
+  Auth --> Postgres
   Chat --> Postgres
   Review --> Postgres
-  Evals --> Agent
-  Evals --> Postgres
-  AdminOps --> Postgres
-  Security --> Redis
-  Demo --> Ingestion
-
-  Gateway --> Audit
+  Admin --> Postgres
+  Auth --> Audit
   Agent --> Traces
   Chat --> Metrics
-  Audit --> Postgres
-  Traces --> Postgres
-  Metrics --> Postgres
-  CI -. validates .-> API
-  CI -. validates .-> Experience
-  Docs -. explains .-> Future
-
-  Postgres -. future migration .-> Supabase
-  Uploads -. future migration .-> Supabase
-  Experience -. future deployment .-> Deploy
-  API -. future deployment .-> Deploy
-
-  classDef user fill:#ecfeff,stroke:#0891b2,color:#083344
-  classDef app fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b
-  classDef service fill:#f8fafc,stroke:#64748b,color:#0f172a
-  classDef agent fill:#f0fdf4,stroke:#16a34a,color:#052e16
-  classDef provider fill:#fff7ed,stroke:#ea580c,color:#431407
-  classDef data fill:#fefce8,stroke:#ca8a04,color:#422006
-  classDef obs fill:#fdf2f8,stroke:#db2777,color:#500724
-  classDef future fill:#fafafa,stroke:#737373,stroke-dasharray: 6 4,color:#171717
-
-  class Admin,Analyst,Reviewer,Viewer user
-  class Web,Client,Gateway,Security,Schemas app
-  class Auth,Ingestion,Processing,Retrieval,Chat,Review,Evals,AdminOps service
-  class Classifier,Planner,Retriever,Reranker,Generator,Verifier,Critic,Scorer,Decision,Final agent
-  class MockEmb,MockLLM,OpenAIEmb,OpenAIResp provider
-  class Postgres,Vector,Redis,Uploads,Demo data
-  class Audit,Traces,Metrics,CI,Docs obs
-  class Supabase,Deploy future
+  CI --> API
+  CI --> UI
 ```
 
 ## Local Setup
@@ -240,15 +168,6 @@ make verify
 7. Run evaluations from the Evaluations page.
 8. Inspect audit logs and analytics as admin.
 
-## What Is Not Included Yet
-
-- Supabase implementation.
-- Cloud deployment.
-- Enterprise SSO.
-- Billing or payments.
-- Real Slack/Jira/GitHub automation integrations.
-- Web crawling or email ingestion.
-
 ## Documentation
 
 - [Architecture](docs/architecture.md)
@@ -257,13 +176,5 @@ make verify
 - [Security](docs/security.md)
 - [Evaluation](docs/evaluation.md)
 - [Local Development](docs/local-development.md)
-- [Future Supabase Plan](docs/future-supabase-plan.md)
-- [Future Deployment Plan](docs/future-deployment-plan.md)
 - [Demo Script](docs/demo-script.md)
 - [OpenAI Token Plan](docs/openai-token-plan.md)
-
-## Resume Bullets
-
-- Built a local enterprise RAG platform with FastAPI, Next.js, PostgreSQL/pgvector, Redis, JWT/RBAC, and Docker Compose.
-- Implemented document ingestion, deterministic mock embeddings, optional OpenAI-compatible providers, vector search, citation verification, confidence scoring, and human review.
-- Added audit logs, admin analytics, evaluation workflows, CI, and production-oriented architecture/security/deployment documentation.

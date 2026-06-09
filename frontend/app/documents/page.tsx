@@ -47,7 +47,7 @@ export default function DocumentsPage() {
         </div>
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
       </section>
-      {!docs.length ? <EmptyState title="No documents yet" body="Upload generated demo reports or research notes, then process them for retrieval." /> : null}
+      {!docs.length ? <EmptyState title="No documents yet" body="Upload sample reports or research notes, then process them for retrieval." /> : null}
       <section className="table-shell">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -72,4 +72,3 @@ export default function DocumentsPage() {
     </AppShell>
   );
 }
-
