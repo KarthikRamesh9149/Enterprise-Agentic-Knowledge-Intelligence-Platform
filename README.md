@@ -1,5 +1,7 @@
 # Enterprise Agentic Knowledge Intelligence Platform
 
+![Enterprise Agentic Knowledge Platform demo preview](docs/assets/enterprise-demo-preview.svg)
+
 Portfolio-grade local enterprise AI product for AI Engineer, GenAI Engineer, Agentic AI Builder, LLMOps Engineer, and Data Scientist roles.
 
 The platform ingests AI research notes and company annual report excerpts, chunks and embeds them into local PostgreSQL with pgvector, answers questions with citation-grounded RAG, records product-level LangGraph-style traces, routes weak answers to human review, and exposes audit, analytics, and evaluation workflows.
@@ -267,3 +269,7 @@ make verify
 - Built a local enterprise RAG platform with FastAPI, Next.js, PostgreSQL/pgvector, Redis, JWT/RBAC, and Docker Compose.
 - Implemented document ingestion, deterministic mock embeddings, optional OpenAI-compatible providers, vector search, citation verification, confidence scoring, and human review.
 - Added audit logs, admin analytics, evaluation workflows, CI, and production-oriented architecture/security/deployment documentation.
+
+## License
+
+All rights reserved. This repository is public for portfolio and recruitment review. Reuse, redistribution, or commercial use requires explicit written permission from Karthik Ramesh.
