@@ -4,6 +4,14 @@ Portfolio-grade local enterprise AI product for AI Engineer, GenAI Engineer, Age
 
 The platform ingests AI research notes and company annual report excerpts, chunks and embeds them into local PostgreSQL with pgvector, answers questions with citation-grounded RAG, records product-level LangGraph-style traces, routes weak answers to human review, and exposes audit, analytics, and evaluation workflows.
 
+## Product Screenshots
+
+Real local product run with Docker Compose, seeded demo users, processed demo documents, mock embeddings, and mock LLM providers.
+
+![Enterprise dashboard with processed documents and query confidence](docs/assets/screenshots/enterprise-dashboard.png)
+
+![Enterprise admin analytics with usage, confidence, latency, and review metrics](docs/assets/screenshots/enterprise-analytics.png)
+
 ## Why It Matters
 
 This repository demonstrates practical enterprise AI engineering: auth, RBAC, document ingestion, vector search, grounded generation, confidence scoring, human oversight, observability, evaluations, Dockerized local infrastructure, and production-oriented documentation.
