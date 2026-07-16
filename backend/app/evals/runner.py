@@ -22,7 +22,19 @@ DEFAULT_TOP_K = 5
 
 
 def _demo_dir() -> Path:
-    # backend/app/evals/runner.py -> repo root is parents[3]
+    """Locate the shipped demo-data directory robustly.
+
+    It lives at the repo root, but the CI installs the package non-editably
+    (so __file__ is under site-packages) and runs from the backend/ dir, so we
+    search upward from both the source file and the cwd for a demo-data dir.
+    """
+    anchors = [Path(__file__).resolve(), Path.cwd().resolve()]
+    for anchor in anchors:
+        for parent in [anchor, *anchor.parents]:
+            candidate = parent / "demo-data"
+            if candidate.is_dir():
+                return candidate
+    # Fall back to the original relative guess.
     return Path(__file__).resolve().parents[3] / "demo-data"
 
 
