@@ -30,6 +30,7 @@ from app.db.models import (
     now_utc,
 )
 from app.db.session import Base, engine, get_db
+from app.evals.runner import evaluate as evaluate_retrieval
 from app.schemas.api import (
     ChatQueryRequest,
     ChatQueryResponse,
@@ -300,24 +301,41 @@ def regenerate(review_id: UUID, payload: ReviewAction, request: Request, user: U
 
 @app.post("/evals/run")
 def run_evals(payload: EvalRunRequest, request: Request, user: User = Depends(require_roles(Role.admin)), db: Session = Depends(get_db)) -> dict:
-    cases = [
-        {"question": "Summarize AI infrastructure risks.", "expected_keywords": ["risk", "infrastructure", "ai"]},
-        {"question": "What does the research say about RAG limitations?", "expected_keywords": ["rag", "limitations", "retrieval"]},
-    ]
+    # Real retrieval eval over the shipped demo-data/eval-*.jsonl datasets:
+    # measures recall@k of the expected document and keyword grounding of the
+    # retrieved text, instead of scoring 2 hardcoded questions against a mock
+    # LLM that always emits citations.
+    report = evaluate_retrieval()
     run = EvaluationRun(name=payload.name, dataset_name=payload.dataset_name, status="running", created_by=user.id)
     db.add(run)
     db.flush()
-    passed = 0
-    for case in cases:
-        q, citations, _state = answer_question(db, user, ChatQueryRequest(question=case["question"]))
-        keywords = case["expected_keywords"]
-        coverage = sum(1 for k in keywords if k in q.answer.lower()) / len(keywords)
-        ok = coverage >= 0.34 and len(citations) >= 1
-        passed += int(ok)
-        db.add(EvaluationCase(run_id=run.id, question=case["question"], expected_keywords=keywords, answer=q.answer, metrics={"keyword_coverage": coverage, "citation_count": len(citations)}, passed=ok))
+    for result in report["results"]:
+        db.add(
+            EvaluationCase(
+                run_id=run.id,
+                question=result["question"],
+                expected_keywords=[],
+                expected_documents=result["expected_documents"],
+                answer="; ".join(result["retrieved_documents"]),
+                metrics={
+                    "recall_at_k": result["recall_at_k"],
+                    "keyword_grounding": result["keyword_grounding"],
+                    "citation_ok": result["citation_ok"],
+                },
+                passed=result["passed"],
+            )
+        )
     run.status = "completed"
     run.completed_at = now_utc()
-    run.metrics = {"cases": len(cases), "passed": passed, "pass_rate": passed / len(cases)}
+    run.metrics = {
+        "cases": report["cases"],
+        "passed": report["passed"],
+        "pass_rate": report["pass_rate"],
+        "recall_at_k": report["recall_at_k"],
+        "grounding_rate": report["grounding_rate"],
+        "top_k": report["top_k"],
+        "corpus_chunks": report["corpus_chunks"],
+    }
     db.commit()
     write_audit(db, user.id, "eval.run", "evaluation_run", str(run.id), run.metrics, request)
     return {"id": str(run.id), "metrics": run.metrics, "status": run.status}
