@@ -20,11 +20,11 @@ def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> st
     payload: dict[str, Any] = {"sub": subject, "exp": expires}
     if extra:
         payload.update(extra)
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(payload, settings.jwt_secret.get_secret_value(), algorithm=settings.jwt_algorithm)
 
 
 def decode_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(token, settings.jwt_secret.get_secret_value(), algorithms=[settings.jwt_algorithm])
     except JWTError as exc:
         raise ValueError("Invalid token") from exc

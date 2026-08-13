@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "Enterprise Agentic Knowledge Intelligence Platform"
     database_url: str = "postgresql+psycopg://postgres:postgres@postgres:5432/knowledge"
     redis_url: str = "redis://redis:6379/0"
-    jwt_secret: str = "local-dev-change-me"
+    jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"
     jwt_expiration_minutes: int = 1440
     upload_dir: str = "/app/uploads"
@@ -31,11 +32,22 @@ class Settings(BaseSettings):
     langsmith_api_key: str | None = None
     rate_limit_per_minute: int = 60
     frontend_url: str = "http://localhost:3000"
+    auth_cookie_name: str = "knowledge_session"
+    auth_cookie_secure: bool = False
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def validate_security_configuration(self) -> "Settings":
+        secret = self.jwt_secret.get_secret_value()
+        if len(secret) < 32:
+            raise ValueError("JWT_SECRET must contain at least 32 characters")
+        if self.app_env.lower() in {"production", "prod"} and not self.auth_cookie_secure:
+            raise ValueError("AUTH_COOKIE_SECURE must be true in production")
+        return self
 
 
 @lru_cache

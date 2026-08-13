@@ -5,15 +5,19 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import decode_token
 from app.db.models import Role, User
 from app.db.session import get_db
 from app.services.audit import write_audit
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
-def current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def current_user(request: Request, token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    token = token or request.cookies.get(settings.auth_cookie_name)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     try:
         payload = decode_token(token)
         user_id = UUID(payload["sub"])
@@ -45,4 +49,3 @@ def require_roles(*roles: Role) -> Callable[[Request, User, Session], User]:
         return user
 
     return dependency
-

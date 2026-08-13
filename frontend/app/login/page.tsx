@@ -7,9 +7,9 @@ import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("analyst@example.com");
-  const [password, setPassword] = useState("LocalAnalyst123!");
-  const [role, setRole] = useState("analyst");
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  const [email, setEmail] = useState(demoMode ? "analyst@example.com" : "");
+  const [password, setPassword] = useState(demoMode ? "LocalAnalyst123!" : "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      if (mode === "register") await api.register(email, password, role);
+      if (mode === "register") await api.register(email, password);
       await api.login(email, password);
       router.replace("/dashboard");
     } catch (err) {
@@ -54,15 +54,7 @@ export default function LoginPage() {
           <input className="mt-2 w-full rounded-md border border-line px-3 py-2 focus-ring" value={email} onChange={(e) => setEmail(e.target.value)} />
           <label className="mt-4 block text-sm font-medium text-ink">Password</label>
           <input className="mt-2 w-full rounded-md border border-line px-3 py-2 focus-ring" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {mode === "register" ? (
-            <>
-              <label className="mt-4 block text-sm font-medium text-ink">Role</label>
-              <select className="mt-2 w-full rounded-md border border-line px-3 py-2 focus-ring" value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="viewer">Viewer</option>
-                <option value="analyst">Analyst</option>
-              </select>
-            </>
-          ) : null}
+          {mode === "register" ? <p className="mt-4 text-xs text-slate-600">New accounts receive Viewer access. An administrator must grant any additional privileges.</p> : null}
           {error ? <p className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           <button className="mt-6 w-full rounded-md bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800" disabled={loading}>
             {loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}
@@ -70,12 +62,9 @@ export default function LoginPage() {
           <button type="button" className="mt-4 text-sm font-medium text-teal-700" onClick={() => setMode(mode === "login" ? "register" : "login")}>
             {mode === "login" ? "Create a local account" : "Back to sign in"}
           </button>
-          <div className="mt-8 rounded-lg bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-            Seeded accounts: admin@example.com, analyst@example.com, reviewer@example.com, viewer@example.com. Passwords follow LocalRole123!.
-          </div>
+          {demoMode ? <div className="mt-8 rounded-lg bg-slate-50 p-4 text-xs leading-6 text-slate-600">Local demo mode is enabled. Seeded accounts and passwords are documented in the README.</div> : null}
         </form>
       </section>
     </main>
   );
 }
-

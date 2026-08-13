@@ -1,5 +1,6 @@
 import time
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,8 @@ from app.schemas.api import ChatQueryRequest
 def answer_question(db: Session, user: User, payload: ChatQueryRequest) -> tuple[RAGQuery, list[RAGCitation], AgentState]:
     start = time.perf_counter()
     session = db.get(ChatSession, payload.session_id) if payload.session_id else None
+    if payload.session_id and (not session or session.user_id != user.id):
+        raise HTTPException(status_code=404, detail="Session not found")
     if not session:
         session = ChatSession(user_id=user.id, title=payload.question[:80])
         db.add(session)

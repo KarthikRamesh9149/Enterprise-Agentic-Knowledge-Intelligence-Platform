@@ -35,7 +35,7 @@ if ($health.status -ne "ok") {
   throw "Backend health failed"
 }
 
-$login = Invoke-JsonPost "$baseUrl/auth/login" @{} @{
+$login = Invoke-JsonPost "$baseUrl/auth/token" @{} @{
   email = "admin@example.com"
   password = "LocalAdmin123!"
 }
@@ -112,4 +112,3 @@ $evalRun = Invoke-JsonPost "$baseUrl/evals/run" $headers @{ name = "OpenAI integ
   analytics = $analytics
   evalRun = $evalRun
 } | ConvertTo-Json -Depth 8
-

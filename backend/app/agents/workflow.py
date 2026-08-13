@@ -1,4 +1,5 @@
 import math
+import re
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
@@ -143,10 +144,17 @@ def generate_answer(state: AgentState) -> AgentState:
 def verify_citations(state: AgentState) -> AgentState:
     started = time.perf_counter()
     state.citations = []
+    cited_indices = {int(index) for index in re.findall(r"\[C(\d+)\]", state.draft_answer)}
+    available_indices = set(range(1, min(4, len(state.reranked_chunks)) + 1))
+    invalid_indices = cited_indices - available_indices
     for idx, chunk in enumerate(state.reranked_chunks[:4], start=1):
+        if idx not in cited_indices:
+            continue
         quote = chunk["content"][: settings.citation_max_chars]
-        status = "verified" if quote and f"[C{idx}]" in state.draft_answer else "weak"
+        status = "verified" if quote and quote in chunk["content"] else "weak"
         state.citations.append({**chunk, "quote": quote, "verification_status": status})
+    if invalid_indices:
+        state.critic_feedback = f"Answer referenced unavailable citations: {sorted(invalid_indices)}."
     _trace(state, "citation_verifier", state.draft_answer, f"Verified {len(state.citations)} citations", started)
     return state
 
@@ -154,7 +162,9 @@ def verify_citations(state: AgentState) -> AgentState:
 def critique_answer(state: AgentState) -> AgentState:
     started = time.perf_counter()
     weak = [c for c in state.citations if c["verification_status"] != "verified"]
-    if not state.citations:
+    if state.critic_feedback.startswith("Answer referenced unavailable citations"):
+        pass
+    elif not state.citations:
         state.critic_feedback = "No supporting citations were retrieved."
     elif weak:
         state.critic_feedback = "Some claims have weak citation support."

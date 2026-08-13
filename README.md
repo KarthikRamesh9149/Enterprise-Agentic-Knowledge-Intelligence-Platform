@@ -18,7 +18,7 @@ This repository demonstrates practical enterprise AI engineering: auth, RBAC, do
 
 ## Features
 
-- FastAPI backend with JWT auth and RBAC roles: admin, analyst, reviewer, viewer.
+- FastAPI backend with explicit-secret JWT auth, HttpOnly browser sessions, and server-enforced RBAC.
 - Next.js enterprise SaaS frontend with role-aware navigation.
 - Local PostgreSQL plus pgvector and Redis through Docker Compose.
 - Upload and process PDF, TXT, Markdown, and CSV files.
@@ -29,6 +29,22 @@ This repository demonstrates practical enterprise AI engineering: auth, RBAC, do
 - Admin audit logs, analytics, system health, and evaluation runner.
 - Demo data and JSONL evaluation cases.
 - CI workflow for backend and frontend checks.
+
+## Security and role model
+
+Public registration has one outcome: a `viewer` account. The request contract contains no role field, and the server assigns `viewer` unconditionally. Elevated access is a trusted administrative operation; the local seed script is the only provisioning mechanism shipped here.
+
+| Capability | Viewer | Analyst | Reviewer | Admin |
+| --- | :---: | :---: | :---: | :---: |
+| Read processed documents and ask grounded questions | Yes | Yes | Yes | Yes |
+| Upload/process/delete own documents | No | Yes | No | Yes |
+| Review low-confidence answers | No | No | Yes | Yes |
+| Run evaluations, view users/audit/analytics | No | No | No | Yes |
+| Read another user's chat sessions, traces, or citations | No | No | No | Admin only |
+
+The browser never receives a token body or writes credentials to `localStorage` or `sessionStorage`. Web login sets a `HttpOnly; SameSite=Strict` cookie; cookie-authenticated mutations require an exact allowlisted `Origin`. CORS credentials are allowed only for explicitly configured origins. Non-browser clients request a bearer token from the separate `/auth/token` endpoint. `JWT_SECRET` is mandatory and must be at least 32 characters. Production configuration additionally requires `AUTH_COOKIE_SECURE=true`, so an omitted secret or insecure production cookie fails startup rather than silently weakening authentication.
+
+Document content is untrusted data, never agent instruction. Retrieval is limited to processed workspace documents; requested document filters can narrow that set but cannot expand it. Citation verification accepts only references to retrieved chunks, persists the source quote from that chunk, and routes missing/invalid support toward low confidence and human review. This supports evidence traceability, not proof that every generated sentence is semantically entailed.
 
 ## Architecture
 
@@ -45,7 +61,7 @@ flowchart TB
 
   subgraph Experience["Experience Layer - Next.js 16 + TypeScript"]
     Web["Role-aware SaaS workspace<br/>dashboard, documents, chat, review, evals, admin"]
-    Client["Typed API client<br/>JWT session, loading states, errors, empty states"]
+    Client["Typed API client<br/>HttpOnly session cookie, loading states, errors, empty states"]
   end
 
   subgraph API["Application Layer - FastAPI"]
@@ -181,10 +197,11 @@ flowchart TB
 ## Local Setup
 
 1. Copy `.env.example` to `.env` if you want custom values.
-2. Run `docker compose up --build`.
-3. Run migrations: `docker compose run --rm backend alembic upgrade head`.
-4. Seed demo users: `docker compose run --rm backend python -m app.scripts.seed`.
-5. Open `http://localhost:3000`.
+2. Replace the example `JWT_SECRET` with a unique random value of at least 32 characters (and set `AUTH_COOKIE_SECURE=true` outside local HTTP development).
+3. Run `docker compose up --build`.
+4. Run migrations: `docker compose run --rm backend alembic upgrade head`.
+5. Seed demo users: `docker compose run --rm backend python -m app.scripts.seed`.
+6. Open `http://localhost:3000`.
 
 Seeded local demo credentials:
 
@@ -195,7 +212,7 @@ Seeded local demo credentials:
 
 ## OpenAI Configuration
 
-The app works without API keys using mock providers. To use OpenAI-compatible providers locally:
+The default path is deterministic and makes no network calls: mock embeddings are hash-derived and the mock answerer quotes retrieved chunks. It is suitable for development, screenshots, CI, and the shipped retrieval evaluation, but it is not a quality proxy for a production model. To opt into OpenAI-compatible providers locally:
 
 ```env
 EMBEDDING_PROVIDER=openai
@@ -221,6 +238,8 @@ Token efficiency plan:
 - Use `OPENAI_REASONING_EFFORT=minimal` and `OPENAI_TEXT_VERBOSITY=low` for low-latency, low-token grounded answers.
 - Route low-confidence answers to review instead of asking the model to over-explain.
 
+There is no runtime dollar budget or exact price calculator in this repository. `estimated_cost` remains `0.0`; treat provider-console usage as the billing source of truth. Provider calls occur only when `EMBEDDING_PROVIDER=openai` or `LLM_PROVIDER=openai` and require `OPENAI_API_KEY`. Tests do not make paid calls.
+
 Official OpenAI docs currently list `gpt-5-mini` as a faster, cost-efficient GPT-5 option and `text-embedding-3-small` as the low-cost embedding model. The OpenAI provider uses the Responses API for model calls. See [OpenAI models](https://platform.openai.com/docs/models), [Responses API](https://platform.openai.com/docs/api-reference/responses), and [pricing](https://platform.openai.com/docs/pricing/).
 
 ## Common Commands
@@ -236,6 +255,22 @@ make frontend-typecheck
 make frontend-build
 make verify
 ```
+
+`make verify` runs backend lint and tests, frontend type checking/build, and Compose configuration validation. Backend type checking is available separately as `make backend-typecheck`. The corpus evaluation is deterministic and deliberately includes a fabricated negative case to show that the gate can fail. These checks cover contracts and core security behavior; this repository does not currently ship a Playwright/Cypress browser suite or load/penetration testing.
+
+## Operations
+
+- Apply Alembic migrations before starting a new application version; do not rely on test-only table creation.
+- Keep `JWT_SECRET` in a managed secret store, rotate it through an explicit all-sessions logout window, terminate TLS at a trusted boundary, and enable `AUTH_COOKIE_SECURE=true`.
+- Back up PostgreSQL and the upload volume together; a database-only restore leaves document records pointing at missing files. Restore procedures are deployment-owned and are not automated here.
+- Monitor health, 401/403 rates, upload/process failures, query latency, low-confidence review volume, and provider spend. The shipped in-memory limiter is per process and is not a distributed abuse control.
+- Restrict CORS to the deployed frontend origin. The frontend/API should remain within one trusted site because the browser session relies on SameSite cookies.
+
+## Threat model and honest limits
+
+The implemented controls target privilege escalation at registration, browser token exfiltration through Web Storage, weak fallback signing keys, horizontal chat-session access, unauthorized document mutation, path traversal, oversized/unsupported uploads, invalid citation references, and common prompt-injection phrases. Audit records cover important actions and denied RBAC checks, but they are mutable rows in the same database—not a tamper-proof ledger.
+
+This is a single-workspace portfolio system, not a multi-tenant SaaS. All authenticated users can retrieve all processed workspace documents. There is no organization boundary, row-level tenant policy, SSO/MFA, session revocation list, malware/CDR pipeline, object storage, distributed rate limiting, CSP/reporting pipeline, or guaranteed disaster recovery. Do not place confidential multi-tenant data in this build without adding and independently testing those controls.
 
 ## Workflow
 
@@ -256,6 +291,8 @@ make verify
 - Billing or payments.
 - Real Slack/Jira/GitHub automation integrations.
 - Web crawling or email ingestion.
+- Multi-tenant isolation and organization-scoped document ACLs.
+- Automated end-to-end browser, load, or penetration tests.
 
 ## Documentation
 

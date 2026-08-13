@@ -7,7 +7,9 @@ from app.agents.workflow import (
     score_confidence,
     verify_citations,
 )
+from app.core.config import Settings
 from app.core.security import create_access_token, decode_token, hash_password, verify_password
+from app.schemas.api import UserCreate
 from app.services.documents import chunk_text, detect_prompt_injection, safe_filename
 from app.services.providers import MockEmbeddingProvider, MockLLMProvider
 
@@ -17,6 +19,34 @@ def test_password_hashing_and_jwt() -> None:
     assert verify_password("LocalPassword123!", hashed)
     token = create_access_token("00000000-0000-0000-0000-000000000001")
     assert decode_token(token)["sub"] == "00000000-0000-0000-0000-000000000001"
+
+
+def test_public_registration_contract_cannot_request_a_role() -> None:
+    payload = UserCreate.model_validate(
+        {"email": "new@example.com", "password": "LocalPassword123!", "role": "admin"}
+    )
+    assert not hasattr(payload, "role")
+
+
+def test_production_configuration_fails_closed_without_secure_cookie(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+    try:
+        Settings()
+    except ValueError as exc:
+        assert "AUTH_COOKIE_SECURE" in str(exc)
+    else:
+        raise AssertionError("insecure production cookie configuration was accepted")
+
+
+def test_configuration_has_no_fallback_signing_secret(monkeypatch) -> None:
+    monkeypatch.delenv("JWT_SECRET")
+    try:
+        Settings(_env_file=None)
+    except ValueError as exc:
+        assert "jwt_secret" in str(exc).lower()
+    else:
+        raise AssertionError("missing JWT_SECRET was accepted")
 
 
 def test_safe_filename_blocks_path_traversal() -> None:

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -68,6 +68,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def enforce_cookie_csrf(request: Request, call_next):
+    """Require an allowlisted browser Origin for state changes authenticated by cookie."""
+    cookie_auth = settings.auth_cookie_name in request.cookies and "authorization" not in request.headers
+    if cookie_auth and request.method not in {"GET", "HEAD", "OPTIONS"}:
+        if request.headers.get("origin") not in settings.cors_origin_list:
+            return Response(status_code=status.HTTP_403_FORBIDDEN, content="Invalid request origin")
+    return await call_next(request)
+
+
 @app.get("/health")
 def health(db: Session = Depends(get_db)) -> dict:
     db.execute(select(1))
@@ -78,8 +88,7 @@ def health(db: Session = Depends(get_db)) -> dict:
 def register(payload: UserCreate, request: Request, db: Session = Depends(get_db)) -> User:
     if db.scalar(select(User).where(User.email == payload.email)):
         raise HTTPException(status_code=400, detail="Email already registered")
-    role = payload.role if payload.role in {Role.viewer, Role.analyst} else Role.viewer
-    user = User(email=payload.email, hashed_password=hash_password(payload.password), role=role)
+    user = User(email=payload.email, hashed_password=hash_password(payload.password), role=Role.viewer)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -87,14 +96,40 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
     return user
 
 
-@app.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+@app.post("/auth/login", response_model=UserRead)
+def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)) -> User:
     rate_limit(request, "login")
     user = db.scalar(select(User).where(User.email == payload.email))
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     write_audit(db, user.id, "auth.login", "user", str(user.id), {}, request)
+    token = create_access_token(str(user.id), {"role": user.role.value})
+    response.set_cookie(
+        settings.auth_cookie_name,
+        token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite="strict",
+        max_age=settings.jwt_expiration_minutes * 60,
+        path="/",
+    )
+    return user
+
+
+@app.post("/auth/token", response_model=TokenResponse)
+def api_token(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+    """Explicit bearer-token endpoint for scripts and non-browser API clients."""
+    rate_limit(request, "token")
+    user = db.scalar(select(User).where(User.email == payload.email))
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    write_audit(db, user.id, "auth.token", "user", str(user.id), {}, request)
     return TokenResponse(access_token=create_access_token(str(user.id), {"role": user.role.value}))
+
+
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response) -> None:
+    response.delete_cookie(settings.auth_cookie_name, path="/", secure=settings.auth_cookie_secure, samesite="strict")
 
 
 @app.get("/auth/me", response_model=UserRead)

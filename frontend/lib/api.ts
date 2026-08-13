@@ -10,43 +10,27 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("access_token");
-}
-
-export function setToken(token: string): void {
-  window.localStorage.setItem("access_token", token);
-}
-
-export function clearToken(): void {
-  window.localStorage.removeItem("access_token");
-}
-
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers = new Headers(init.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   if (!(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     throw new ApiError(body.detail || "Request failed", res.status);
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 export const api = {
-  register: (email: string, password: string, role: string) =>
-    request<User>("/auth/register", { method: "POST", body: JSON.stringify({ email, password, role }) }),
-  login: async (email: string, password: string) => {
-    const body = await request<{ access_token: string }>("/auth/login", {
+  register: (email: string, password: string) =>
+    request<User>("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string) =>
+    request<User>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
-    });
-    setToken(body.access_token);
-    return body;
-  },
+    }),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
   me: () => request<User>("/auth/me"),
   documents: () => request<DocumentItem[]>("/documents"),
   document: (id: string) => request<DocumentItem>(`/documents/${id}`),
@@ -71,4 +55,3 @@ export const api = {
   auditLogs: () => request<Array<Record<string, unknown>>>("/admin/audit-logs"),
   analytics: () => request<Record<string, unknown>>("/admin/analytics"),
 };
-

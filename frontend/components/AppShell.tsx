@@ -15,7 +15,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { api, clearToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Role, User } from "@/types/api";
 
 const nav = [
@@ -78,8 +78,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <button
           className="mt-auto flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-teal-50 hover:bg-white/10"
-          onClick={() => {
-            clearToken();
+          onClick={async () => {
+            await api.logout().catch(() => undefined);
             router.replace("/login");
           }}
         >
@@ -107,4 +107,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 export function canUpload(role: Role) {
   return role === "admin" || role === "analyst";
 }
-

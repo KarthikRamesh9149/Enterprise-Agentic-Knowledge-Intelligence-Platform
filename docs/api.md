@@ -1,6 +1,6 @@
 # API
 
-All protected routes require `Authorization: Bearer <token>`.
+Protected routes accept `Authorization: Bearer <token>` for API clients or the HttpOnly `knowledge_session` cookie issued to the browser. Browser requests must include credentials.
 
 ## Health
 
@@ -10,6 +10,8 @@ All protected routes require `Authorization: Bearer <token>`.
 
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/token` explicit bearer-token issuance for non-browser clients
+- `POST /auth/logout`
 - `GET /auth/me`
 
 ## Documents
@@ -52,4 +54,3 @@ All protected routes require `Authorization: Bearer <token>`.
 - `GET /admin/analytics` admin
 - `GET /admin/users` admin
 - `GET /admin/system-health` admin
-
